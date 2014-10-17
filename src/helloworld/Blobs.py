@@ -55,15 +55,70 @@ if __name__ == '__main__':
         
         # Clean up the mask
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
-        opening = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-        masked = cv2.bitwise_and(frame2, frame2, mask= opening)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        masked = cv2.bitwise_and(frame2, frame2, mask=mask)
                
-
+        # Contours?
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_SIMPLE)
+        
+        # filter out small blobs
+        contours2 = []
+        for c in contours:
+            
+            p = cv2.arcLength(c, True)
+            a = cv2.contourArea(c)
+            
+            if a < 200: 
+                continue
+                
+            rect = cv2.minAreaRect(c)                      
+            w = rect[1][0]
+            h = rect[1][1]   
+            
+            if abs((h/w) - 1) > 0.2:
+                continue
+            
+            contours2.append(c)
+                
+        
+        # Show feature data for each contour within threshold
+        con = frame2.copy()
+        cv2.drawContours(con, contours, -1, (0,0,255), 1)   
+        cv2.drawContours(con, contours2, -1, (0,255,0), 1)   
+     
+        for c in contours2:    
+            # Bounding box
+            rect = cv2.minAreaRect(c)
+            box = cv2.cv.BoxPoints(rect)
+            box = np.int0(box)
+            cv2.drawContours(con, [box], 0, (255,0,0), 2)
+            
+            w = rect[1][0]
+            h = rect[1][1]     
+                        
+            # Area and perimeter
+            p = cv2.arcLength(c, True)
+            a = cv2.contourArea(c)
+                               
+            # Display the features for each blob     
+            M = cv2.moments(c)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            
+            disp = "P: %d, A: %d, W:, %d H: %d" % (p, a, w, h)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(con, disp, (cx,cy), font, 0.4, (255,255,255), 1)
+            
+        
+        
+        
         # Show the results
-        imshow("Source video", frame)  
-        imshow("Calibrated Video", frame2)
-        imshow("Masked", masked)
-
+        #imshow("Source video", frame)  
+        #imshow("Calibrated Video", frame2)
+        #imshow("Masked", masked)
+             
+        imshow("Contours", con)
+        
         
         # Exit Nicely
         if cv2.waitKey(1) & 0xFF == ord('q'):
